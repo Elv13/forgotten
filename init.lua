@@ -35,8 +35,10 @@ local function settable_eventLen (table)
 end
 
 local function startTimer()
+    print("in start timer",autoSave,mytimer.started)
     if mytimer.started == true or autoSave == false then return end
-    mytimer:add_signal("timeout", function()
+    mytimer:connect_signal("timeout", function()
+        print("timeout")
         if mytimer.started == true then
             mytimer:stop()
             print("Serializing data")
@@ -47,6 +49,7 @@ local function startTimer()
 end
 
 local function settable_eventW (table, key,value)
+--     print("there",key,value)
     local function digg(val,parent,k2,realT)
         if type(val) == "table" then
             rawset(parent,k2,{["__real_table"]=realT[k2]})
@@ -150,7 +153,7 @@ end
 
 local function unserialise(newData2,currentData2)
     if not newData2 then return end
-    local currentData = currentData2 or data()
+    local currentData = currentData2 or module.data()
     local newData = newData2
     for k,v in pairs(newData) do
         if currentData[k] ~= nil and newData2[k] ~= nil then
@@ -166,7 +169,7 @@ local function unserialise(newData2,currentData2)
 end
 
 function module.save()
-     local f = io.open(util.getdir("config") .. "/serialized.lua",'w')
+     local f = io.open(util.getdir("cache") .. "/serialized.lua",'w')
      if f then
         f:write("return " .. serialise(data2).." \n")
         f:close()
@@ -174,7 +177,7 @@ function module.save()
 end
 
 function module.load()
-    local f = io.open(util.getdir("config") .. "/serialized.lua",'r')
+    local f = io.open(util.getdir("cache") .. "/serialized.lua",'r')
     if f then
         local text    = f:read("*all")
         local func    = loadstring(text)
@@ -195,4 +198,4 @@ function module.enableAutoSave()
     autoSave = true
 end
 
-return setmetatable(module, { __call = function(_, ...) return module.data end })
+return setmetatable(module, { __call = function(_, ...) return module.data end,__newindex = module.data, __index = module.data })
