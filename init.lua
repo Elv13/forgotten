@@ -22,11 +22,14 @@ local capi         = { image  = image  ,
 local module = {}
 
 local data2 = nil
-local autoSave = true
+local auto_save = true
 local mytimer = capi.timer({ timeout = 2 })
 
 local data3 = {}
 local function settable_eventR (table, key)
+    if key == "auto_save"then
+        return auto_save
+    end
     return data2[key]
 end
 
@@ -35,10 +38,8 @@ local function settable_eventLen (table)
 end
 
 local function startTimer()
-    print("in start timer",autoSave,mytimer.started)
-    if mytimer.started == true or autoSave == false then return end
+    if mytimer.started == true or auto_save == false then return end
     mytimer:connect_signal("timeout", function()
-        print("timeout")
         if mytimer.started == true then
             mytimer:stop()
             print("Serializing data")
@@ -49,7 +50,9 @@ local function startTimer()
 end
 
 local function settable_eventW (table, key,value)
---     print("there",key,value)
+    if key == "auto_save" and type(value) == "boolean" then
+        auto_save = value
+    end
     local function digg(val,parent,k2,realT)
         if type(val) == "table" then
             rawset(parent,k2,{["__real_table"]=realT[k2]})
@@ -191,11 +194,11 @@ function module.load()
 end
 
 function module.disableAutoSave()
-    autoSave = false
+    auto_save = false
 end
 
 function module.enableAutoSave()
-    autoSave = true
+    auto_save = true
 end
 
-return setmetatable(module, { __call = function(_, ...) return module.data end,__newindex = module.data, __index = module.data })
+return setmetatable(module, { __call = function(_, ...) return module.data end,__newindex = settable_eventW, __index = settable_eventR })

@@ -11,6 +11,11 @@ cd ~/.config/awesome
 git clone git@github.com:Elv13/forgotten.git
 </pre>
 
+And add this to your rc.lua:
+<pre>
+local forgotten = require("forgotten")
+</pre>
+
 You are done!
 
 ##Usage
