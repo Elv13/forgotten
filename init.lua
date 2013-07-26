@@ -6,7 +6,7 @@ local setmetatable = setmetatable
 local loadstring   = loadstring
 local table        = table
 local io           = io
-local rawset       = rawset
+local rawset,rawget= rawset,rawget
 local type         = type
 local ipairs       = ipairs
 local string       = string
@@ -25,16 +25,17 @@ local data2 = nil
 local auto_save = true
 local mytimer = capi.timer({ timeout = 2 })
 
-local data3 = {}
+local interface = {}
+local data_ext = {}
 local function settable_eventR (table, key)
     if key == "auto_save"then
         return auto_save
     end
-    return data2[key]
+    return rawget(table,"__real_table")[key]
 end
 
 local function settable_eventLen (table)
-    return #data2
+    return #(rawget(table,"__real_table")[key])
 end
 
 local function startTimer()
@@ -83,15 +84,16 @@ local function settable_eventW (table, key,value)
         end
     end
 
-    if data2[key] ~= value then
+    local real_data = rawget(filename and data_ext[filename] or interface,"__real_table")
+    if real_data[key] ~= value then
         startTimer()
-        data2[key] = value
-        digg(value,data3,key,data2)
+        real_data[key] = value
+        digg(value,table,key,real_data)
     end
-    return data2[key]
+    return real_data[key]
 end
 
-setmetatable(data3, { __index = settable_eventR, __newindex = settable_eventW, __len = settable_eventLen })
+setmetatable(interface, { __index = settable_eventR, __newindex = settable_eventW, __len = settable_eventLen })
 
 function module.get_real(t)
     if t["__real_table"] ~= nil then
@@ -102,15 +104,19 @@ function module.get_real(t)
     end
 end
 
-local function set(args)
-    data2 = args
-    rawset(data3,"__real_table",data2)
-end
+local real_data2 = {}
+rawset(interface,"__real_table",real_data2)
+rawset(module,"__real_table",real_data2)
 
-set({})
-
-function module.data()
-    return data3
+function module.data(filename)
+    if filename then
+        if not data_ext[filename] then
+            local rd,int = {},{}
+            setmetatable(int, { __index = settable_eventR, __newindex = settable_eventW, __len = settable_eventLen })
+            data_ext[filename] = { real_data = rd, interface=int}
+        end
+    end
+    return interface
 end
 
 local function genValidKey(key)
@@ -171,16 +177,17 @@ local function unserialise(newData2,currentData2)
     end
 end
 
-function module.save()
-     local f = io.open(util.getdir("cache") .. "/serialized.lua",'w')
+function module.save(filename)
+     local real_data = rawget(filename and data_ext[filename] or interface,"__real_table")
+     local f = io.open(util.getdir("cache") .. "/" .. (filename or "serialized.lua"),'w')
      if f then
-        f:write("return " .. serialise(data2).." \n")
+        f:write("return " .. serialise(real_data).." \n")
         f:close()
      end
 end
 
-function module.load()
-    local f = io.open(util.getdir("cache") .. "/serialized.lua",'r')
+function module.load(filename)
+    local f = io.open(util.getdir("cache") .. "/" .. (filename or "serialized.lua"),'r')
     if f then
         local text    = f:read("*all")
         local func    = loadstring(text)
