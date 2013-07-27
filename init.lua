@@ -12,6 +12,7 @@ local ipairs       = ipairs
 local string       = string
 local pairs        = pairs
 local print        = print
+local debug = debug
 local util         = require( "awful.util"   )
 
 -- C API
@@ -27,11 +28,17 @@ local mytimer = capi.timer({ timeout = 2 })
 
 local interface = {}
 local data_ext = {}
+local settable_eventW
 local function settable_eventR (table, key)
     if key == "auto_save"then
         return auto_save
     end
-    return rawget(table,"__real_table")[key]
+    local ret = rawget(table,"__real_table")
+    if ret[key] then return ret[key] end
+    ret[key] = {}
+    rawset(table,key,{["__real_table"]=ret[key]})
+    setmetatable(table[key],{ __index = settable_eventR, __newindex = settable_eventW, __len = settable_eventLen })
+    return table[key]
 end
 
 local function settable_eventLen (table)
@@ -50,7 +57,7 @@ local function startTimer()
     mytimer:start()
 end
 
-local function settable_eventW (table, key,value)
+settable_eventW = function(table, key,value)
     if key == "auto_save" and type(value) == "boolean" then
         auto_save = value
     end
@@ -165,7 +172,7 @@ local function unserialise(newData2,currentData2)
     local currentData = currentData2 or module.data()
     local newData = newData2
     for k,v in pairs(newData) do
-        if currentData[k] ~= nil and newData2[k] ~= nil then
+        if rawget(currentData,k) ~= nil and rawget(newData2,k) ~= nil then
             if type(newData2[k]) == "table" then
                 unserialise(newData2[k],currentData[k])
             else
