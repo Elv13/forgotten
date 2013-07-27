@@ -28,7 +28,22 @@ local mytimer = capi.timer({ timeout = 2 })
 
 local interface = {}
 local data_ext = {}
-local settable_eventW
+local settable_eventW,startTimer
+
+local function mirrorLen(table2)
+    local realT = rawget(table,"__real_table")
+    return #realT
+end
+
+local function mirrorW(table, key,value)
+    local realT = rawget(table,"__real_table")
+    if realT[key] ~= value then
+        realT[key] = value
+        startTimer()
+        return realT[key]
+    end
+end
+
 local function settable_eventR (table, key)
     if key == "auto_save"then
         return auto_save
@@ -37,7 +52,7 @@ local function settable_eventR (table, key)
     if ret[key] then return ret[key] end
     ret[key] = {}
     rawset(table,key,{["__real_table"]=ret[key]})
-    setmetatable(table[key],{ __index = settable_eventR, __newindex = settable_eventW, __len = settable_eventLen })
+    setmetatable(table[key],{ __index = settable_eventR, __newindex = mirrorW, __len = settable_eventLen })
     return table[key]
 end
 
@@ -45,7 +60,7 @@ local function settable_eventLen (table)
     return #(rawget(table,"__real_table")[key])
 end
 
-local function startTimer()
+startTimer = function()
     if mytimer.started == true or auto_save == false then return end
     mytimer:connect_signal("timeout", function()
         if mytimer.started == true then
@@ -67,10 +82,6 @@ settable_eventW = function(table, key,value)
 
             local function mirrorR(table2, key3)
                 return realT[k2][key3]
-            end
-
-            local function mirrorLen(table2)
-                return #realT[k2]
             end
 
             local function mirrorW(table, key,value)
