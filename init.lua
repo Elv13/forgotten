@@ -12,6 +12,7 @@ local ipairs       = ipairs
 local string       = string
 local pairs        = pairs
 local print        = print
+local next         = next
 local debug = debug
 local util         = require( "awful.util"   )
 
@@ -44,6 +45,10 @@ local function mirrorW(table, key,value)
     end
 end
 
+local function settable_eventLen (table)
+    return #(rawget(table,"__real_table")[key])
+end
+
 local function settable_eventR (table, key)
     if key == "auto_save"then
         return auto_save
@@ -52,12 +57,8 @@ local function settable_eventR (table, key)
     if ret[key] then return ret[key] end
     ret[key] = {}
     rawset(table,key,{["__real_table"]=ret[key]})
-    setmetatable(table[key],{ __index = settable_eventR, __newindex = mirrorW, __len = settable_eventLen })
+    setmetatable(table[key],{ __index = settable_eventR, __newindex = mirrorW, __len = settable_eventLen})
     return table[key]
-end
-
-local function settable_eventLen (table)
-    return #(rawget(table,"__real_table")[key])
 end
 
 startTimer = function()
@@ -130,7 +131,7 @@ function module.data(filename)
     if filename then
         if not data_ext[filename] then
             local rd,int = {},{}
-            setmetatable(int, { __index = settable_eventR, __newindex = settable_eventW, __len = settable_eventLen })
+            setmetatable(int, { __index = settable_eventR, __newindex = settable_eventW, __len = settable_eventLen})
             data_ext[filename] = { real_data = rd, interface=int}
         end
     end
@@ -216,6 +217,15 @@ function module.load(filename)
         unserialise(newData)
         f:close()
     end
+end
+
+function module.is_set(path)
+    if not path then return false end
+    local t = type(path)
+    if t ~= "table" then return true end
+    local rt = rawget(path,"__real_table")
+    local k,v,k2,v2 = next(rt or {}),next(path)
+    return k ~= nil or k2 ~= nil
 end
 
 function module.disableAutoSave()
